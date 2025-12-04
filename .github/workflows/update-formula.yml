@@ -1,0 +1,102 @@
+name: Update Formula
+
+on:
+  schedule:
+    # Check for new releases daily at midnight UTC
+    - cron: "0 0 * * *"
+  repository_dispatch:
+    types: [update-formula]
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for new release and update formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          # Get the latest release from ctrlplanedev/cli
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/ctrlplanedev/cli/releases/latest)
+          LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name' | sed 's/^v//')
+
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            echo "Failed to fetch latest version"
+            exit 1
+          fi
+
+          echo "Latest version: $LATEST_VERSION"
+
+          # Get current version from formula
+          CURRENT_VERSION=$(grep -oP 'version "\K[^"]+' Formula/ctrlc.rb)
+          echo "Current version: $CURRENT_VERSION"
+
+          # Compare versions
+          if [ "$LATEST_VERSION" = "$CURRENT_VERSION" ]; then
+            echo "Formula is already up to date"
+            exit 0
+          fi
+
+          echo "Updating formula from $CURRENT_VERSION to $LATEST_VERSION"
+
+          # Download assets and calculate checksums
+          BASE_URL="https://github.com/ctrlplanedev/cli/releases/download/v${LATEST_VERSION}"
+
+          echo "Downloading and calculating checksums..."
+
+          DARWIN_ARM64_SHA=$(curl -sL "${BASE_URL}/ctrlc_Darwin_arm64.tar.gz" | sha256sum | cut -d' ' -f1)
+          echo "Darwin arm64: $DARWIN_ARM64_SHA"
+
+          DARWIN_X86_64_SHA=$(curl -sL "${BASE_URL}/ctrlc_Darwin_x86_64.tar.gz" | sha256sum | cut -d' ' -f1)
+          echo "Darwin x86_64: $DARWIN_X86_64_SHA"
+
+          LINUX_ARM64_SHA=$(curl -sL "${BASE_URL}/ctrlc_Linux_arm64.tar.gz" | sha256sum | cut -d' ' -f1)
+          echo "Linux arm64: $LINUX_ARM64_SHA"
+
+          LINUX_X86_64_SHA=$(curl -sL "${BASE_URL}/ctrlc_Linux_x86_64.tar.gz" | sha256sum | cut -d' ' -f1)
+          echo "Linux x86_64: $LINUX_X86_64_SHA"
+
+          # Update the formula file
+          sed -i "s/version \"${CURRENT_VERSION}\"/version \"${LATEST_VERSION}\"/" Formula/ctrlc.rb
+
+          # Update Darwin x86_64 sha256 (appears first in the file for on_intel under on_macos)
+          sed -i "/ctrlc_Darwin_x86_64.tar.gz/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"${DARWIN_X86_64_SHA}\"/}" Formula/ctrlc.rb
+
+          # Update Darwin arm64 sha256 (appears second for on_arm under on_macos)
+          sed -i "/ctrlc_Darwin_arm64.tar.gz/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"${DARWIN_ARM64_SHA}\"/}" Formula/ctrlc.rb
+
+          # Update Linux x86_64 sha256 (appears first in on_linux section)
+          sed -i "/ctrlc_Linux_x86_64.tar.gz/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"${LINUX_X86_64_SHA}\"/}" Formula/ctrlc.rb
+
+          # Update Linux arm64 sha256 (appears second in on_linux section)
+          sed -i "/ctrlc_Linux_arm64.tar.gz/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"${LINUX_ARM64_SHA}\"/}" Formula/ctrlc.rb
+
+          echo "Updated formula:"
+          cat Formula/ctrlc.rb
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet Formula/ctrlc.rb; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          LATEST_VERSION=$(grep -oP 'version "\K[^"]+' Formula/ctrlc.rb)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/ctrlc.rb
+          git commit -m "Update ctrlc to v${LATEST_VERSION}"
+          git push
