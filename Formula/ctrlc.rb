@@ -4,30 +4,30 @@
 class Ctrlc < Formula
   desc "CLI tool for Ctrlplane - deployment orchestration platform"
   homepage "https://github.com/ctrlplanedev/cli"
-  version "1.23.0"
+  version "1.23.1"
   license "MIT"
 
   on_macos do
     on_intel do
       url "https://github.com/ctrlplanedev/cli/releases/download/v#{version}/ctrlc_Darwin_x86_64.tar.gz"
-      sha256 "79364767299459048e856d17f7615351b4d9d6464383c0d1048a4b81325b57ef"
+      sha256 "d14ba9ab297eaebe512f9e94cf7a389e864d1a6e870a7ef27c72220fc7c96cf7"
     end
 
     on_arm do
       url "https://github.com/ctrlplanedev/cli/releases/download/v#{version}/ctrlc_Darwin_arm64.tar.gz"
-      sha256 "4cf058e183f3e146442edcabc0bd7d49d1f8ea0de200e19fb1452d5046068893"
+      sha256 "1b3fbf75eb40c78bf4a496373d96650c71cfee5a46efeccf3c6b8ae1908be1d3"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/ctrlplanedev/cli/releases/download/v#{version}/ctrlc_Linux_x86_64.tar.gz"
-      sha256 "9cf2cf5ea26be0e1a8664a1a00bf17a784f249217389c21419fab4644ea92916"
+      sha256 "072c1b0560646da5216789f8c17742c2ac691079ae0a75a7d51eb6c44d4ff1d5"
     end
 
     on_arm do
       url "https://github.com/ctrlplanedev/cli/releases/download/v#{version}/ctrlc_Linux_arm64.tar.gz"
-      sha256 "6554db656063cd685a82770b190ba3312dff124872442586e22d029b49539105"
+      sha256 "63e588f844b6fd10ecf451cc86e1119c470ccee66325d3b9ff8e5a87b0b4231f"
     end
   end
 
